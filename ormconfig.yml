@@ -1,0 +1,6 @@
+default:
+  host: 
+  port: ${SERVER_PORT}
+  username: ${POSTGRES_USERNAME}
+  password: ${POSTGRES_PASSWORD}
+  database: ${DATABASE_NAME}

@@ -1,0 +1,47 @@
+version: "3"
+services:
+  server:
+    container_name: ereignis-server
+    restart: on-failure
+    build: .
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${SERVER_PORT}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB_NAME}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_HOST: ${DB_HOST}
+      REDIS_URL: ${REDIS_URL}
+    ports:
+      - ${SERVER_PORT}:${SERVER_PORT}
+    command: npm run start
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  postgres:
+    container_name: postgresql
+    image: "postgis/postgis:12-2.5"
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+    volumes:
+      - ereignis-volume:/home/node/app
+
+  redis:
+    container_name: redis
+    image: "redis:6.2-alpine"
+    restart: always
+    ports:
+      - ${REDIS_PORT}:${REDIS_PORT}
+    
+volumes:
+  ereignis-volume:
+    driver: local
