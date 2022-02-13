@@ -7,7 +7,7 @@
     "watch": "tsc -w",
     "dev": "nodemon dist/index.js",
     "start": "node dist/index.js",
-    "db:test:setup": "ts-node ./src/test-utils/setup.ts",
+    "db:test:setup": "ts-node ./src/test/test-utils/setup.ts",
     "test": "npm run db:test:setup && jest"
   },
   "keywords": [],
