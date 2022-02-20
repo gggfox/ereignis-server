@@ -3,8 +3,8 @@ import nodemailer from "nodemailer"
 import { User } from "../entities/User";
 import { UsernamePasswordInput } from "../types/UsernamePasswordInput";
 import { validateRegister } from "../utils/validate/validateRegister";
-import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from "type-graphql";
-import { getConnection } from "typeorm";
+import { Arg, Authorized, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from "type-graphql";
+import { getConnection, getManager } from "typeorm";
 import { MyContext } from "../types"
 import { UserResponse } from "../types/UserResponse";
 
@@ -159,12 +159,77 @@ export class UserResolver {
                 errors: [
                     {
                         field: "password",
-                        message: "Contraseña equivocada",
+                        message: "Contraseña incorrecta",
                     },
                 ],
             };
         }
         req.session.userId = user.id;
+        return {user,};
+    }
+
+    @Authorized(["ADMIN"])
+    @Mutation(() => UserResponse)
+    async addRole(
+        @Arg('role') role: string,
+        @Ctx() { req }: MyContext
+    ): Promise<UserResponse> {
+        const possibleRoles = ["ADMIN", "REGULAR", "PROVIDER"]
+        const entityManager = getManager();
+        if(!req.session.userId){
+            return {
+                errors: [
+                    {
+                        field: "",
+                        message: "porfavor haga login",
+                    },
+                ],
+            };
+        }
+        if(!possibleRoles.includes(role)){
+            return {
+                errors: [
+                    {
+                        field: "",
+                        message: "este rol de usuario es invalido",
+                    },
+                ],
+            };
+        }
+        let user = await User.findOne({where: {id: req.session.userId}});
+        if(user?.roles.includes(role)){
+            return {user,};
+        }
+        user?.roles.push(role);
+        entityManager.save(user);
+        return {user,};
+    }
+
+    @Mutation(() => UserResponse)
+    async removeRole(
+        @Arg('role') role: string,
+        @Ctx() { req }: MyContext
+    ): Promise<UserResponse> {
+        if(!req.session.userId){
+            return {
+                errors: [
+                    {
+                        field: "",
+                        message: "porfavor haga login",
+                    },
+                ],
+            };
+        }
+        
+        let user = await User.findOne({where: {id: req.session.userId}});
+        
+        if(user){
+            const entityManager = getManager();
+            const new_roles = user?.roles.filter((curr_role) => {return curr_role != role});
+            user.roles = new_roles as string []
+            entityManager.save(user);
+        }
+        
         return {user,};
     }
 }
