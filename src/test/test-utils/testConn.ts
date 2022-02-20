@@ -1,7 +1,6 @@
 import { createConnection } from "typeorm"
 
 export const testConn = (drop: boolean = false) => {
-    console.log("DIRNAME: ", __dirname)
     return createConnection({
         "type": "postgres",
         "host":"localhost",
