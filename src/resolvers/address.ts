@@ -1,6 +1,6 @@
-import { MyContext } from "../types";
-import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
+import { Arg, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import { Address } from "../entities/Address";
+import { getConnection } from "typeorm";
 
 @InputType()
 class AddressInput {
@@ -36,8 +36,44 @@ class AddressResponse {
   address?: Address;
 }
 
+@ObjectType()
+class PaginatedAddresses {
+  @Field(() => [Address])
+  addresses: Address[]
+  @Field()
+  hasMore: boolean;
+}
+
 @Resolver(Address)
 export class AddressResolver {      
+
+  @Query(() => PaginatedAddresses)
+  async addresses(
+    @Arg('limit', () => Int) limit: number,
+    @Arg('cursor', () => String, {nullable: true}) cursor: string | null,
+  ): Promise<PaginatedAddresses> {
+    
+    const realLimit = Math.min(50, limit);
+    const realLimitPlusOne = realLimit + 1;
+    const replacements: any[] = [realLimitPlusOne];
+
+    if(cursor){
+      replacements.push(new Date(parseInt(cursor)));
+    }
+    const addresses = await getConnection().query( `
+      SELECT a.*
+      FROM address a
+      ${cursor ? `WHERE a."createdAt < $2`:""}
+      ORDER BY a."createdAt" DESC
+      LIMIT $1
+    `, replacements);
+
+    return {
+      addresses: addresses.slice(0,realLimit),
+      hasMore: addresses.length === realLimitPlusOne
+    }
+  }
+
   @Mutation(() => AddressResponse)
   async createAddress(
     @Arg('input') input: AddressInput,
