@@ -13,6 +13,7 @@ import { MyContext } from "./types";
 import { createSchema } from "./utils/createSchema";
 import { ApolloServerPluginLandingPageGraphQLPlayground } from "apollo-server-core"
 import { Address } from "./entities/Address";
+import { authChecker } from "./utils/auth-checker";
 // import passport from "passport"
 
 
@@ -58,7 +59,7 @@ const main = async () => {
         })
     );
 
-    const schema = await createSchema();
+    const schema = await createSchema(authChecker);
     const apolloServer = new ApolloServer({
         schema,
         context: ({ req, res }): MyContext => ({

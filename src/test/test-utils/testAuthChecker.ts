@@ -1,15 +1,14 @@
-import { User } from "../entities/User";
-import { MyContext } from "src/types";
 import { AuthChecker } from "type-graphql";
+import { TestContext } from "./testContext";
 
-export const authChecker: AuthChecker<MyContext> = async (
+export const testAuthChecker: AuthChecker<TestContext> = async (
   { context: { req } },
   roles,
 ) => {
-    if(!req.session.userId){
+    if(!req?.session?.user?.id){
         return false
     }
-    const user = await User.findOne({ where: { id: req.session.userId } });
+    const user = req.session.user
 
     if (roles.length === 0) {
       // if `@Authorized()`, check only if user exists

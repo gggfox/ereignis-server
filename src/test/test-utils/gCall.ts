@@ -1,22 +1,27 @@
 import { graphql, GraphQLSchema } from "graphql"
 import { Maybe } from "graphql/jsutils/Maybe"
+import { User } from "../../entities/User";
 import { createSchema } from "../../utils/createSchema"
+import { testAuthChecker } from "./testAuthChecker";
 
 interface Options {
     source: string;
     variableValues?: Maybe<{
         [key: string]: any
     }>;
-    userId?: number;
+    user?: User;
 }
 
 let schema: GraphQLSchema;
 
-export const gCall = async ({source, variableValues, userId }: Options) => {
+export const gCall = async ({source, variableValues, user }: Options) => {
     if(!schema){
-        schema = await createSchema();
+        schema = await createSchema(testAuthChecker);
     }
-
+    let userId = undefined;
+    if(user?.id){
+        userId = user.id;
+    }
     const response = await graphql({
         schema, 
         source,
@@ -24,13 +29,14 @@ export const gCall = async ({source, variableValues, userId }: Options) => {
         contextValue: {
             req: {
                 session: {
-                    userId
+                    userId,
+                    user,
                 }
             },
             res: {
                 clearCookie: jest.fn()
             }
         }
-    })
+    });
     return response;
 }

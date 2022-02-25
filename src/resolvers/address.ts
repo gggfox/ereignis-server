@@ -1,4 +1,4 @@
-import { Arg, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import { Arg, Authorized, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import { Address } from "../entities/Address";
 import { getConnection } from "typeorm";
 
@@ -17,7 +17,7 @@ class AddressInput {
   @Field()
   interiorNumber?: string;
   @Field()
-  postalCode: string;
+  zip: string;
 }
 
 @ObjectType()
@@ -47,6 +47,7 @@ class PaginatedAddresses {
 @Resolver(Address)
 export class AddressResolver {      
 
+  @Authorized(["ADMIN", "PROVIDER"])
   @Query(() => PaginatedAddresses)
   async addresses(
     @Arg('limit', () => Int) limit: number,
@@ -74,6 +75,7 @@ export class AddressResolver {
     }
   }
 
+  @Authorized(["ADMIN", "PROVIDER"])
   @Mutation(() => AddressResponse)
   async createAddress(
     @Arg('input') input: AddressInput,
@@ -89,7 +91,7 @@ export class AddressResolver {
         street: input.street,
         exteriorNumber: input.exteriorNumber,
         interiorNumber: input.interiorNumber,
-        postalCode: input.postalCode
+        zip: input.zip
     }).save();
 
     return {address, }
