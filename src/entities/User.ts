@@ -4,25 +4,28 @@ import { Authorized, Field, ObjectType } from "type-graphql"
 @ObjectType()
 @Entity()
 export class User extends BaseEntity{
-
     @Field()
     @PrimaryGeneratedColumn()
     id!: number;
 
     @Field()
     @Column({unique: true})
-    username: string
+    username: string;
+
+    @Column()
+    password!: string;
 
     @Field()
     @Column({unique: true})
-    email: string
-
-    @Column()
-    password!: string
+    email: string;
 
     @Field()
-    @Column({ default: false})
-    confirmed!: boolean
+    @Column({unique: true})
+    phone: string;
+
+    @Field()
+    @Column({default: false})
+    confirmed!: boolean;
 
     @Authorized(["ADMIN"])
     @Field(() => [String])
@@ -36,5 +39,4 @@ export class User extends BaseEntity{
     @Field(() => String)
     @UpdateDateColumn()
     updatedAt: Date;
-
 }

@@ -44,10 +44,10 @@ export class UserResolver {
     */
     @Mutation(() => UserResponse)
     async register(
-        @Arg('options') {email, username, password, confirmation}: UsernamePasswordInput,
+        @Arg('options') {email, username,phone, password, confirmation}: UsernamePasswordInput,
         @Ctx() {req}: MyContext
     ): Promise<UserResponse> {
-        const errors = validateRegister({email, username, password, confirmation});
+        const errors = validateRegister({email, username, phone, password, confirmation});
         if(errors){
             return {errors};
         }
@@ -61,14 +61,15 @@ export class UserResolver {
              .values({
                 username: username,
                 email: email,
-                password: hashedPassword
+                password: hashedPassword,
+                phone: phone
             })
             .returning('*')
             .execute();
-
             user = result.raw[0];
         }catch (err) {
-            if (err.code === "23505") {// duplicate username error
+            const duplicateErrorCode = "23505"
+            if (err.code === duplicateErrorCode) {// duplicate username error
                 return {
                     errors: [{
                         field: "username",
@@ -76,8 +77,8 @@ export class UserResolver {
                     }]
                 };
             }
+            console.log(err); // log unexpected error
         }
-       
         req.session.userId = user.id;
         return {user};
     }
