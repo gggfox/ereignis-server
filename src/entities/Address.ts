@@ -18,16 +18,16 @@ export class Address extends BaseEntity{
     state: string
 
     @Field(() => String)
-    @Column()
+    @Column({default: "Monterrey"})
     city: string
 
-    @Field(() => String)
+    @Field(() => String,{nullable: false})
     @Column()
     street: string
 
-    @Field(() => String)
+    @Field(() => String, {nullable: false})
     @Column()
-    postalCode: string
+    zip: string
 
     @Field(() => String)
     @Column()

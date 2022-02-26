@@ -61,50 +61,55 @@ const createAddressMutation =
     }
   }`
 
-describe("Address", () => {
-  it("create address", async () => {
-    const input = {
-      country: faker.address.country(),
-      state: faker.address.state(),
-      city: faker.address.city(),
-      street: faker.address.streetName(),
-      exteriorNumber: "1234",
-      interiorNumber: "1234",
-      zip: "12345"
-    };
+const valid_input = {
+  country: faker.address.country(),
+  state: faker.address.state(),
+  city: faker.address.city(),
+  street: faker.address.streetName(),
+  exteriorNumber: "1234",
+  interiorNumber: "1234",
+  zip: "12345"
+};
 
+describe("Address", () => {
+
+  it("admin user creates address", async () => {
     const response_admin = await gCall({
       source: createAddressMutation,
       variableValues: {
-        input: input
+        input: valid_input
       },
       user: user_admin,
     });
 
     expect(response_admin).toMatchObject({
       data: {
-        createAddress: { address: input }              
+        createAddress: { address: valid_input }              
       }
     });
+  });
 
+  it("provider user create address", async () => {
     const response_provider = await gCall({
       source: createAddressMutation,
       variableValues: {
-        input: input
+        input: valid_input
       },
       user: user_provider,
     });
 
     expect(response_provider).toMatchObject({
       data: {
-        createAddress: { address: input }              
+        createAddress: { address: valid_input }              
       }
     });
+  });
 
+  it("regular user dose't create address", async () => {
     const response_regular = await gCall({
       source: createAddressMutation,
       variableValues: {
-        input: input
+        input: valid_input
       },
       user: user_regular,
     });
@@ -112,7 +117,6 @@ describe("Address", () => {
     expect(response_regular).toMatchObject({
       data: null
     });
-
   });
 
   it("Rejet missing fields", async () => {
@@ -136,17 +140,19 @@ describe("Address", () => {
 
     expect(response).toMatchObject({
       data: {
-        errors: [{
-          field:"",
-          message:""
-          },{
-            field:"",
-            message:""
-          }
-        ],
-        createAddress: { address: input }
+        createAddress: { 
+          errors: [{
+            field:"street",
+            message:"el nombre de calle no puede estar vacio"
+            },{
+              field:"zip",
+              message:"el codigo postal lleva 5 numeros"
+            }
+          ],
+          address: null 
+        }
       }              
     });
   });
 
-  });
+});
