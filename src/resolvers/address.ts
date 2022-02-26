@@ -1,24 +1,8 @@
-import { Arg, Authorized, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import { Arg, Authorized, Field, Int, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import { Address } from "../entities/Address";
 import { getConnection } from "typeorm";
-
-@InputType()
-class AddressInput {
-  @Field()
-  country?: string;
-  @Field()
-  state: string;
-  @Field()
-  city: string
-  @Field()
-  street: string;
-  @Field()
-  exteriorNumber: string;
-  @Field()
-  interiorNumber?: string;
-  @Field()
-  zip: string;
-}
+import { AddressInput } from "../types/AddressInput";
+import { validateAddress } from "../utils/validate/validateAddress";
 
 @ObjectType()
 class AddressFieldError {
@@ -83,6 +67,10 @@ export class AddressResolver {
   ): Promise<AddressResponse> {
     //let errors: AddressFieldError = []
 
+    const errors = validateAddress(input);
+    if(errors){
+        return {errors};
+    }
     
     const address = await Address.create({
         country: input.country,
