@@ -40,6 +40,18 @@ export class Salon extends BaseEntity{
     @Column()
     parkingSpaces: number;
 
+    @Field()
+    @Column()
+    address_id: number;
+
+    @Field()
+    @Column()
+    accepted: boolean;
+
+    @Field()
+    @Column()
+    hidden: boolean;
+
     @Field(() => String)
     @CreateDateColumn()
     createdAt: Date;
