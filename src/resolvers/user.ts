@@ -3,11 +3,19 @@ import nodemailer from "nodemailer"
 import { User } from "../entities/User";
 import { UsernamePasswordInput } from "../types/UsernamePasswordInput";
 import { validateRegister } from "../utils/validate/validateRegister";
-import { Arg, Authorized, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from "type-graphql";
+import { Arg, Authorized, Ctx, Field, FieldResolver, Int, Mutation, ObjectType, Query, Resolver, Root } from "type-graphql";
 import { getConnection, getManager } from "typeorm";
 import { MyContext } from "../types"
 import { UserResponse } from "../types/UserResponse";
+import { UserProfileUpdateInput } from "../types/UserProfileUpdateInput";
 
+@ObjectType()
+class PaginatedUsers {
+  @Field(() => [User])
+  users: User[]
+  @Field()
+  hasMore: boolean;
+}
 
 @Resolver(User)
 export class UserResolver {
@@ -68,16 +76,15 @@ export class UserResolver {
             .execute();
             user = result.raw[0];
         }catch (err) {
-            const duplicateErrorCode = "23505"
-            if (err.code === duplicateErrorCode) {// duplicate username error
+            const duplicateUserErrorCode = "23505"
+            if (err.code === duplicateUserErrorCode) {
                 return {
                     errors: [{
                         field: "username",
-                        message: "username already taken",
+                        message: "nombre de usuario ya existe",
                     }]
                 };
             }
-            console.log(err); // log unexpected error
         }
         req.session.userId = user.id;
         return {user};
@@ -116,17 +123,52 @@ export class UserResolver {
           return info.messageId
     }
 
+    @Authorized(["ADMIN"])
+    @Query(() => PaginatedUsers, {nullable:true})
+    async users(
+        @Arg("limit", () => Int)limit:number,
+        @Arg("cursor", () => String, {nullable:true})cursor: string | null
+    ):Promise<PaginatedUsers>{
+        const realLimit = Math.min(50, limit);
+        const realLimitPlusOne = realLimit + 1;
+        const replacements: any[] = [realLimitPlusOne];
     
-    @Query(() => [User], {nullable:true})
-    users(){
-        return User.find()
+        if(cursor){
+          replacements.push(new Date(parseInt(cursor)));
+        }
+        const users = await getConnection().query( `
+          SELECT u.*
+          FROM "user" u
+          ${cursor ? `WHERE u."createdAt" < $2`:""}
+          ORDER BY u."createdAt" DESC
+          LIMIT $1
+        `, replacements);
+        return {
+          users: users.slice(0, realLimit),
+          hasMore: users.length === realLimitPlusOne
+        }
     }
 
-    @Query(() => User)
-    user(
-        @Arg("email")email:string
-    ){
-        return User.findOne({where:{email: email}})
+    @Query(() => UserResponse)
+    async user(
+        @Arg("id", () => Int) id:number,
+        @Ctx() {req}: MyContext
+    ):Promise<UserResponse>{
+        const curr_user = await User.findOne({where:{id:req.session.userId}});
+        const user = await User.findOne({where:{id: id}});
+        if(!user){
+            return {errors: [{
+                field:"", 
+                message:"usuario no encontrado"
+            }]}  
+        }
+        if(!user?.confirmed && req.session.userId != id && !curr_user?.roles.includes("ADMIN")){
+            return {errors: [{
+                field:"", 
+                message:"usuario sin cuenta activada"
+            }]}
+        }
+        return {user,}
     }
 
 
@@ -171,66 +213,108 @@ export class UserResolver {
 
     @Authorized(["ADMIN"])
     @Mutation(() => UserResponse)
-    async addRole(
-        @Arg('role') role: string,
-        @Ctx() { req }: MyContext
+    async addProviderRole(
+        @Arg('id',() => Int)id:number
     ): Promise<UserResponse> {
-        const possibleRoles = ["ADMIN", "REGULAR", "PROVIDER"]
-        const entityManager = getManager();
-        if(!req.session.userId){
+        const entityManager = getManager();      
+        let user = await User.findOne({where: {id: id}});
+        if(!user){
             return {
                 errors: [
                     {
                         field: "",
-                        message: "porfavor haga login",
+                        message: "usuario no encontrado",
                     },
                 ],
             };
         }
-        if(!possibleRoles.includes(role)){
-            return {
-                errors: [
-                    {
-                        field: "",
-                        message: "este rol de usuario es invalido",
-                    },
-                ],
-            };
-        }
-        let user = await User.findOne({where: {id: req.session.userId}});
-        if(user?.roles.includes(role)){
+        if(user?.roles.includes("PROVIDER")){
             return {user,};
         }
-        user?.roles.push(role);
-        entityManager.save(user);
+        user?.roles.push("PROVIDER");
+        await entityManager.save(user);
         return {user,};
     }
 
+    @Authorized(["ADMIN"])
     @Mutation(() => UserResponse)
-    async removeRole(
-        @Arg('role') role: string,
-        @Ctx() { req }: MyContext
-    ): Promise<UserResponse> {
-        if(!req.session.userId){
+    async removeProviderRole(
+        @Arg('id', () => Int) id: number,
+    ): Promise<UserResponse> {       
+        let user = await User.findOne({where: {id: id}});
+        if(!user){
             return {
                 errors: [
                     {
                         field: "",
-                        message: "porfavor haga login",
+                        message: "usuario no encontrado",
                     },
                 ],
             };
         }
-        
-        let user = await User.findOne({where: {id: req.session.userId}});
-        
         if(user){
             const entityManager = getManager();
-            const new_roles = user?.roles.filter((curr_role) => {return curr_role != role});
+            const new_roles = user?.roles.filter((curr_role) => {return curr_role != "PROVIDER"});
             user.roles = new_roles as string []
             entityManager.save(user);
         }
         
         return {user,};
     }
+
+    @Authorized()
+    @Mutation(() => UserResponse)
+    async updateProfile(
+        @Arg("id", () => Int) id: number,
+        @Arg("input")input: UserProfileUpdateInput,
+        @Ctx() {req}:MyContext
+    ):Promise<UserResponse>{        
+        const curr_user = await User.findOne({where: {id: req.session.userId}});
+        const notAdmin = !curr_user?.roles.includes("ADMIN");
+        if(notAdmin && req.session.userId !== id){
+            return {errors:[{
+                field:"",
+                message:"Operacion invalida"
+            }]}
+        }
+        let user = await User.findOne({where:{id:id}});
+        
+        if(!user){
+            return {errors:[{
+                field:"",
+                message:"Operacion invalida"
+            }]}
+        }
+
+        const result = await getConnection()
+        .createQueryBuilder()
+        .update(User)
+        .set({username:input.username, email:input.email, phone:input.phone})
+        .where('id = :id',{id})
+        .returning("*")
+        .execute()
+
+        user = result.raw[0];
+        return {user,}
+    }
+
+    @Authorized()
+    @Mutation(() => Boolean)
+    async deleteUser(
+        @Arg("id", () => Int)id: number,
+        @Ctx() {req}:MyContext
+    ): Promise<boolean> {
+        const curr_user = await User.findOne({where:{id:req.session.userId}});
+        const notAdmin = !curr_user?.roles.includes("ADMIN");
+        if(notAdmin && req.session.userId !== id){
+            return false;
+        }
+        let user = await User.findOne({where:{id:id}});
+        if(!user){
+            return false;
+        }
+        User.delete({id});
+        return true;
+    }
+
 }

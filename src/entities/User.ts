@@ -20,12 +20,12 @@ export class User extends BaseEntity{
     email: string;
 
     @Field()
-    @Column({unique: true})
-    phone: string;
+    @Column({unique: true, nullable: true})
+    phone?: string;
 
     @Field()
     @Column({default: false})
-    confirmed!: boolean;
+    confirmed: boolean;
 
     @Authorized(["ADMIN"])
     @Field(() => [String])
