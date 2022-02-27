@@ -48,7 +48,7 @@ export class AddressResolver {
     const addresses = await getConnection().query( `
       SELECT a.*
       FROM address a
-      ${cursor ? `WHERE a."createdAt < $2`:""}
+      ${cursor ? `WHERE a."createdAt" < $2`:""}
       ORDER BY a."createdAt" DESC
       LIMIT $1
     `, replacements);

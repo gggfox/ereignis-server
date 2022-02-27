@@ -1,36 +1,15 @@
 import faker from "@withshepherd/faker";
 import { gCall } from "./test-utils/gCall";
 import { testConn } from "./test-utils/testConn"
-import { Connection, getConnection } from "typeorm";
+import { Connection } from "typeorm";
 import { User } from "../entities/User";
-
-
+import { createUser } from "./helpers/createUser";
 
 let conn: Connection;
-let user: User;
-const createUser = async (roles:string[]) => {
-  const result = await getConnection()
-  .createQueryBuilder()
-  .insert()
-  .into(User)
-  .values({
-      username: faker.internet.userName(),
-      email: faker.internet.email(),
-      password: faker.internet.password(),
-      phone: faker.phone.phoneNumber()
-  })
-  .returning('*')
-  .execute();
-
-  user = result.raw[0];
-  user = await User.findOne(user.id) as User;
-  user.roles = roles
-  user.save()
-  return user
-}
 let user_regular:User;
 let user_admin:User;
 let user_provider:User;
+
 beforeAll(async () => {
     conn = await testConn();
     user_regular = await createUser(["REGULAR"]);
@@ -50,6 +29,7 @@ const createAddressMutation =
       message
     }
     address{
+      id
       country
       state
       city
@@ -71,9 +51,9 @@ const valid_input = {
   zip: "12345"
 };
 
-describe("Address", () => {
+describe("CREATE Address", () => {
 
-  it("admin user creates address", async () => {
+  it("accept CREATE address by admin user", async () => {
     const response_admin = await gCall({
       source: createAddressMutation,
       variableValues: {
@@ -89,7 +69,7 @@ describe("Address", () => {
     });
   });
 
-  it("provider user create address", async () => {
+  it("accept CREATE address by provider user", async () => {
     const response_provider = await gCall({
       source: createAddressMutation,
       variableValues: {
@@ -105,7 +85,7 @@ describe("Address", () => {
     });
   });
 
-  it("regular user dose't create address", async () => {
+  it("reject CREATE address by regular user", async () => {
     const response_regular = await gCall({
       source: createAddressMutation,
       variableValues: {
@@ -119,7 +99,7 @@ describe("Address", () => {
     });
   });
 
-  it("Rejet missing fields", async () => {
+  it("reject CREATE address with invalid fields", async () => {
     const input = {
       country: faker.address.country(),
       state: faker.address.state(),
@@ -155,4 +135,26 @@ describe("Address", () => {
     });
   });
 
+
+});
+
+describe("READ Address", () => {
+  it("accept READ on one address", async () => {});
+  it("accept READ on address list", async () => {});
+  it("reject READ non existing address", async () => {})
+});
+
+describe("UPDATE Address", () => {
+  it("accept UPDATE on address by owner", async () => {});
+  it("accept UPDATE on address by admin", async () => {});
+  it("reject UPDATE on address by non-owner", async () => {})
+  it("reject UPDATE on non-existing address", async () => {});
+  it("reject UPDATE with invalid values", async () => {});
+});
+
+describe("DELETE Address", () => {
+  it("accept DELETE on address by owner", async () => {});
+  it("accept DELETE on address by admin", async () => {});
+  it("reject DELETE on address by non-owner", async () => {});
+  it("reject DELETE on non-existing address", async () => {});
 });
